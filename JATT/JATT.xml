@@ -1,0 +1,288 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>JATT</name>
+    </assembly>
+    <members>
+        <member name="P:JATT.ServerDetails.WelcomeMessage">
+            <summary>
+            Gets the welcome message of the server.
+            </summary>
+        </member>
+        <member name="P:JATT.ServerDetails.Clients">
+            <summary>
+            Gets the number of clients on the server.
+            </summary>
+        </member>
+        <member name="P:JATT.ServerDetails.MaxClients">
+            <summary>
+            Gets the maximum number of clients of the server.
+            </summary>
+        </member>
+        <member name="P:JATT.ServerDetails.IsPasswordProtected">
+            <summary>
+            Gets a <see cref="T:System.Boolean"/> value that represents whether the server is password protected.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTClient.State">
+            <summary>
+            Gets the state of the server. Used only with <see cref="M:JATT.JATTClient.ConnectWithAuth(System.String,System.Int32,System.String,System.String)"/>.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTClient.ServerDetails">
+            <summary>
+            Gets a <see cref="P:JATT.JATTClient.ServerDetails"/> value that holds the details of the server to which the client is connected.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTClient.OnPacketReceived">
+            <summary>
+            Occurs when the client receives any kind of <see cref="T:JATT.Packet"/>.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTClient.OnMessageReceived">
+            <summary>
+            Occurs when the client receives a text message. (<see cref="T:JATT.TextPacket"/>)
+            </summary>
+        </member>
+        <member name="E:JATT.JATTClient.OnConnected">
+            <summary>
+            Occurs when the client connects to the server.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTClient.OnRegistered">
+            <summary>
+            Occurs when the client gets registered by the server.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTClient.OnDisconnected">
+            <summary>
+            Occurs when the client disconnects from the server.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTClient.OnRegisterFailed">
+            <summary>
+            Occurs when the server denies the registration of the client.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTClient.OnUserPacketReceived">
+            <summary>
+            Occurs when the client receives a <see cref="T:JATT.UserPacket"/>.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTClient.OnWelcomeMsgReceived">
+            <summary>
+            Occurs when the client receives the <see cref="P:JATT.JATTClient.ServerDetails"/>
+            </summary>
+        </member>
+        <member name="M:JATT.JATTClient.ConnectWithAuth(System.String,System.Int32,System.String,System.String)">
+            <summary>
+            Connects to the specified port on the specified host using authentication.
+            </summary>
+            <param name="ip">The host to which you intend to connect.</param>
+            <param name="port"></param>
+            <param name="identifier"></param>
+            <param name="password"></param>
+            <returns>True if authentication succeeded.</returns>
+        </member>
+        <member name="M:JATT.JATTClient.Connect(System.String,System.Int32)">
+            <summary>
+            Connects to the specified port on the specified host.
+            </summary>
+            <param name="ip">The host to which you intend to connect.</param>
+            <param name="port">The port number of the host to which you intend to connect.</param>
+        </member>
+        <member name="M:JATT.JATTClient.Buffer">
+            <summary>
+            Returns the received bytes. (Receiving a packet clears the buffer)
+            </summary>
+            <returns>Buffer.</returns>
+        </member>
+        <member name="M:JATT.JATTClient.SendMessageToServer(JATT.Packet)">
+            <summary>
+            Sends the specified <see cref="T:JATT.Packet"/> to the server.
+            </summary>
+            <param name="packet">Any type of <see cref="T:JATT.Packet"/></param>
+        </member>
+        <member name="M:JATT.JATTClient.SendMessageToServer(System.String)">
+            <summary>
+            Sends a text message to the server using a <see cref="T:JATT.TextPacket"/>.
+            </summary>
+            <param name="message">The message to be sent.</param>
+        </member>
+        <member name="M:JATT.JATTClient.BroadcastMessage(JATT.Packet)">
+            <summary>
+            Sends the specified <see cref="T:JATT.Packet"/> to the clients on the server. (Excluding the server)
+            Uses <see cref="T:JATT.BroadcastPacket"/>.
+            </summary>
+            <param name="packet">Any type of <see cref="T:JATT.Packet"/></param>
+        </member>
+        <member name="M:JATT.JATTClient.BroadcastMessage(System.String)">
+            <summary>
+            Sends the specified <see cref="T:JATT.Packet"/> to the clients on the server. (Excluding the server)
+            Uses <see cref="T:JATT.BroadcastPacket"/> and <see cref="T:JATT.TextPacket"/>.
+            </summary>
+            <param name="message">The message to be sent.</param>
+        </member>
+        <member name="M:JATT.JATTClient.Disconnect">
+            <summary>
+            Disconnects the client.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTServer.ServerClient.Identifier">
+            <summary>
+            Gets the identifier.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTServer.ServerClient.Client">
+            <summary>
+            Gets the underlying <see cref="T:System.Net.Sockets.TcpClient"/>.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTServer.ServerClient.State">
+            <summary>
+            Gets the state of the client.
+            </summary>
+        </member>
+        <member name="M:JATT.JATTServer.ServerClient.SendMessage(JATT.Packet)">
+            <summary>
+            Sends the specified <see cref="T:JATT.Packet"/> to the client.
+            </summary>
+            <param name="packet">Any type of <see cref="T:JATT.Packet"/></param>
+        </member>
+        <member name="M:JATT.JATTServer.ServerClient.SendMessage(System.String)">
+            <summary>
+            Sends a text message to the client using a <see cref="T:JATT.TextPacket"/>.
+            </summary>
+            <param name="message">The message to be sent.</param>
+        </member>
+        <member name="P:JATT.JATTServer.IsListening">
+            <summary>
+            Gets a value indicating whether the server is running.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTServer.Clients">
+            <summary>
+            Gets the list of the connected clients.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTServer.MaxClients">
+            <summary>
+            Gets or sets the maximum number of clients accepted by the server.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTServer.Password">
+            <summary>
+            Gets or sets the password.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTServer.WelcomeMessage">
+            <summary>
+            Gets or sets the welcome message.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTServer.UseAuth">
+            <summary>
+            Gets or sets the value indicating whether the server uses authentication.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTServer.OnClientConnected">
+            <summary>
+            Occurs when a client connects.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTServer.OnClientRegistered">
+            <summary>
+            Occurs when a client gets registered.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTServer.OnClientDisconnected">
+            <summary>
+            Occurs when a client disconnects from the server
+            </summary>
+        </member>
+        <member name="E:JATT.JATTServer.OnPacketReceived">
+            <summary>
+            Occurs when the server recives any kind of <see cref="T:JATT.Packet"/>.
+            </summary>
+        </member>
+        <member name="E:JATT.JATTServer.OnMessageReceived">
+            <summary>
+            Occurs when the server recives a text message. (<see cref="T:JATT.TextPacket"/>)
+            </summary>
+        </member>
+        <member name="E:JATT.JATTServer.OnUserPacketReceived">
+            <summary>
+            Occurs when the server receives a <see cref="T:JATT.UserPacket"/>.
+            </summary>
+        </member>
+        <member name="M:JATT.JATTServer.Start(System.Int32)">
+            <summary>
+            Starts the server on the specified port.
+            </summary>
+            <param name="port">The port to listen on.</param>
+            <exception cref="T:System.Net.Sockets.SocketException"></exception>
+        </member>
+        <member name="M:JATT.JATTServer.BroadcastMessage(JATT.Packet)">
+            <summary>
+            Sends the specified <see cref="T:JATT.Packet"/> to each connected client.
+            </summary>
+            <param name="packet">Any type of <see cref="T:JATT.Packet"/>.</param>
+        </member>
+        <member name="M:JATT.JATTServer.BroadcastMessage(System.String)">
+            <summary>
+            Sends a text message to each connected client using a <see cref="T:JATT.TextPacket"/>.
+            </summary>
+            <param name="message">The message to be sent.</param>
+        </member>
+        <member name="M:JATT.JATTServer.SendMessage(JATT.JATTServer.ServerClient,JATT.Packet)">
+            <summary>
+            Sends a <see cref="T:JATT.Packet"/> to the specified <see cref="T:JATT.JATTServer.ServerClient"/>.
+            </summary>
+            <param name="client">The receiver of the packet.</param>
+            <param name="packet">Any type of <see cref="T:JATT.Packet"/>.</param>
+        </member>
+        <member name="M:JATT.JATTServer.SendMessage(JATT.JATTServer.ServerClient,System.String)">
+            <summary>
+            Sends a text message to the specified <see cref="T:JATT.JATTServer.ServerClient"/>.
+            </summary>
+            <param name="client">The receiver of the message.</param>
+            <param name="message">The message to be sent.</param>
+        </member>
+        <member name="M:JATT.JATTServer.RegisterUserPacket(System.Byte,System.Action{JATT.JATTServer.ServerClient,JATT.UserPacket})">
+            <summary>
+            Registers an <see cref="T:System.Action"/> to be invoked when the server receives the specified type of <see cref="T:JATT.UserPacket"/>.
+            </summary>
+            <param name="type">The type of the packet.</param>
+            <param name="method">The action to be invoked.</param>
+        </member>
+        <member name="M:JATT.JATTServer.Stop">
+            <summary>
+            Stops the server.
+            </summary>
+        </member>
+        <member name="M:JATT.JATTServer.Buffer">
+            <summary>
+            Returns the received bytes. (Receiving a packet clears the buffer)
+            </summary>
+            <returns>Buffer.</returns>
+        </member>
+        <member name="T:JATT.TcpListenerEx">
+            <summary>
+            Wrapper around TcpListener that exposes the Active property
+            See: http://stackoverflow.com/questions/7630094/is-there-a-property-method-for-determining-if-a-tcplistener-is-currently-listeni
+            </summary>
+        </member>
+        <member name="M:JATT.TcpListenerEx.#ctor(System.Net.IPEndPoint)">
+            <summary>
+            Initializes a new instance of the <see cref="T:System.Net.Sockets.TcpListener"/> class with the specified local endpoint.
+            </summary>
+            <param name="localEP">An <see cref="T:System.Net.IPEndPoint"/> that represents the local endpoint to which to bind the listener <see cref="T:System.Net.Sockets.Socket"/>. </param><exception cref="T:System.ArgumentNullException"><paramref name="localEP"/> is null. </exception>
+        </member>
+        <member name="M:JATT.TcpListenerEx.#ctor(System.Net.IPAddress,System.Int32)">
+            <summary>
+            Initializes a new instance of the <see cref="T:System.Net.Sockets.TcpListener"/> class that listens for incoming connection attempts on the specified local IP address and port number.
+            </summary>
+            <param name="localaddr">An <see cref="T:System.Net.IPAddress"/> that represents the local IP address. </param><param name="port">The port on which to listen for incoming connection attempts. </param><exception cref="T:System.ArgumentNullException"><paramref name="localaddr"/> is null. </exception><exception cref="T:System.ArgumentOutOfRangeException"><paramref name="port"/> is not between <see cref="F:System.Net.IPEndPoint.MinPort"/> and <see cref="F:System.Net.IPEndPoint.MaxPort"/>. </exception>
+        </member>
+    </members>
+</doc>
