@@ -357,7 +357,8 @@ namespace JATT
                             _userDefinedEvents[type].DynamicInvoke(new UserPacket(type, data));
                             break;
                         default:
-                            Console.WriteLine(Packet.MessageEncoding.GetString(msg));
+                            // Console.WriteLine(Packet.MessageEncoding.GetString(msg));
+                            // TODO: ?
                             break;
                     }
                 }

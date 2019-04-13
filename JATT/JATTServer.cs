@@ -356,7 +356,8 @@ namespace JATT
                                 break;
 
                             default:
-                                Console.WriteLine(Packet.MessageEncoding.GetString(msg));
+                                // Console.WriteLine(Packet.MessageEncoding.GetString(msg));
+                                // TODO: ?
                                 break;
                         }
                     }
