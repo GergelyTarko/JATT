@@ -4,7 +4,7 @@
 
 [![GitHub license](https://img.shields.io/github/license/TarkoGergely/JATT.svg)](https://raw.githubusercontent.com/TarkoGergely/JATT/master/LICENSE)
 
-JATT is a simple .NET library to 
+JATT is a simple .NET library to easily handle TCP socket connections.
 
 ## Supported Platforms
 
