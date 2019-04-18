@@ -8,7 +8,7 @@ JATT is a simple .NET library to easily handle TCP socket connections.
 
 ## Supported Platforms
 
-- .NET Framework (3.5 and higher)
+- .NET Framework (4.0 and higher)
 - .NET Standard (2.0 and higher)
 - .NET Core (2.0 and higher)
 
