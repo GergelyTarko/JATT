@@ -4,6 +4,15 @@
         <name>JATT</name>
     </assembly>
     <members>
+        <member name="M:JATT.IPAddressExtensions.GetBroadcastAddress(System.Net.IPAddress,System.Net.IPAddress)">
+            <summary>
+            
+            </summary>
+            https://blogs.msdn.microsoft.com/knom/2008/12/31/ip-address-calculations-with-c-subnetmasks-networks/
+            <param name="address"></param>
+            <param name="subnetMask"></param>
+            <returns></returns>
+        </member>
         <member name="P:JATT.ServerDetails.WelcomeMessage">
             <summary>
             Gets the welcome message of the server.
@@ -26,7 +35,7 @@
         </member>
         <member name="P:JATT.JATTClient.State">
             <summary>
-            Gets the state of the server. Used only with <see cref="M:JATT.JATTClient.ConnectWithAuth(System.String,System.Int32,System.String,System.String)"/>.
+            Gets the state of the server. Used only with <see cref="M:JATT.JATTClient.ConnectWithAuth(System.String,System.Int32,System.String,System.String,System.AsyncCallback,System.Object)"/>.
             </summary>
         </member>
         <member name="P:JATT.JATTClient.ServerDetails">
@@ -34,14 +43,24 @@
             Gets a <see cref="P:JATT.JATTClient.ServerDetails"/> value that holds the details of the server to which the client is connected.
             </summary>
         </member>
-        <member name="E:JATT.JATTClient.OnPacketReceived">
+        <member name="P:JATT.JATTClient.ConnectTimeout">
             <summary>
-            Occurs when the client receives any kind of <see cref="T:JATT.Packet"/>.
+            TODO
+            </summary>
+        </member>
+        <member name="P:JATT.JATTClient.UsePackets">
+            <summary>
+            Gets or sets the value indicating whether the client uses <see cref="T:JATT.Packet"/>.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTClient.Delimiter">
+            <summary>
+            Gets or sets the value used as delimiter when <see cref="P:JATT.JATTClient.UsePackets"/> is false.
             </summary>
         </member>
         <member name="E:JATT.JATTClient.OnMessageReceived">
             <summary>
-            Occurs when the client receives a text message. (<see cref="T:JATT.TextPacket"/>)
+            Occurs when the client receives any kind of <see cref="T:JATT.Message"/>.
             </summary>
         </member>
         <member name="E:JATT.JATTClient.OnConnected">
@@ -64,17 +83,17 @@
             Occurs when the server denies the registration of the client.
             </summary>
         </member>
-        <member name="E:JATT.JATTClient.OnUserPacketReceived">
-            <summary>
-            Occurs when the client receives a <see cref="T:JATT.UserPacket"/>.
-            </summary>
-        </member>
         <member name="E:JATT.JATTClient.OnWelcomeMsgReceived">
             <summary>
             Occurs when the client receives the <see cref="P:JATT.JATTClient.ServerDetails"/>
             </summary>
         </member>
-        <member name="M:JATT.JATTClient.ConnectWithAuth(System.String,System.Int32,System.String,System.String)">
+        <member name="E:JATT.JATTClient.OnTransmissionEnd">
+            <summary>
+            TODO
+            </summary>
+        </member>
+        <member name="M:JATT.JATTClient.ConnectWithAuth(System.String,System.Int32,System.String,System.String,System.AsyncCallback,System.Object)">
             <summary>
             Connects to the specified port on the specified host using authentication.
             </summary>
@@ -83,6 +102,13 @@
             <param name="identifier"></param>
             <param name="password"></param>
             <returns>True if authentication succeeded.</returns>
+        </member>
+        <member name="M:JATT.JATTClient.ConnectAndWait(System.String,System.Int32,System.Int32)">
+            <summary>
+            Connects to the specified port on the specified host.
+            </summary>
+            <param name="ip">The host to which you intend to connect.</param>
+            <param name="port">The port number of the host to which you intend to connect.</param>
         </member>
         <member name="M:JATT.JATTClient.Connect(System.String,System.Int32)">
             <summary>
@@ -93,35 +119,33 @@
         </member>
         <member name="M:JATT.JATTClient.Buffer">
             <summary>
-            Returns the received bytes. (Receiving a packet clears the buffer)
+            Returns the received bytes. (Receiving a <see cref="T:JATT.Message"/> clears the buffer)
             </summary>
             <returns>Buffer.</returns>
         </member>
-        <member name="M:JATT.JATTClient.SendMessageToServer(JATT.Packet)">
+        <member name="M:JATT.JATTClient.SendRawBytes(System.Byte[])">
             <summary>
-            Sends the specified <see cref="T:JATT.Packet"/> to the server.
+            Sends a <see cref="T:System.Byte"/>[] to the server.
             </summary>
-            <param name="packet">Any type of <see cref="T:JATT.Packet"/></param>
+            <param name="data">The bytes to be sent.</param>
+        </member>
+        <member name="M:JATT.JATTClient.SendMessageToServer(JATT.Message)">
+            <summary>
+            Sends a <see cref="T:JATT.Message"/> to the server.
+            </summary>
+            <param name="message">The <see cref="T:JATT.Message"/> to be sent.</param>
         </member>
         <member name="M:JATT.JATTClient.SendMessageToServer(System.String)">
             <summary>
-            Sends a text message to the server using a <see cref="T:JATT.TextPacket"/>.
+            Sends a text message to the server.
             </summary>
             <param name="message">The message to be sent.</param>
         </member>
-        <member name="M:JATT.JATTClient.BroadcastMessage(JATT.Packet)">
+        <member name="M:JATT.JATTClient.IsConnected">
             <summary>
-            Sends the specified <see cref="T:JATT.Packet"/> to the clients on the server. (Excluding the server)
-            Uses <see cref="T:JATT.BroadcastPacket"/>.
+            TODO
             </summary>
-            <param name="packet">Any type of <see cref="T:JATT.Packet"/></param>
-        </member>
-        <member name="M:JATT.JATTClient.BroadcastMessage(System.String)">
-            <summary>
-            Sends the specified <see cref="T:JATT.Packet"/> to the clients on the server. (Excluding the server)
-            Uses <see cref="T:JATT.BroadcastPacket"/> and <see cref="T:JATT.TextPacket"/>.
-            </summary>
-            <param name="message">The message to be sent.</param>
+            <returns></returns>
         </member>
         <member name="M:JATT.JATTClient.Disconnect">
             <summary>
@@ -143,15 +167,21 @@
             Gets the state of the client.
             </summary>
         </member>
-        <member name="M:JATT.JATTServer.ServerClient.SendMessage(JATT.Packet)">
+        <member name="M:JATT.JATTServer.ServerClient.SendRawBytes(System.Byte[])">
             <summary>
-            Sends the specified <see cref="T:JATT.Packet"/> to the client.
+            Sends a <see cref="T:System.Byte"/>[] to the client.
             </summary>
-            <param name="packet">Any type of <see cref="T:JATT.Packet"/></param>
+            <param name="data">The bytes to be sent.</param>
+        </member>
+        <member name="M:JATT.JATTServer.ServerClient.SendMessage(JATT.Message)">
+            <summary>
+            Sends a <see cref="T:JATT.Message"/> to the client.
+            </summary>
+            <param name="message">The <see cref="T:JATT.Message"/> to be sent.</param>
         </member>
         <member name="M:JATT.JATTServer.ServerClient.SendMessage(System.String)">
             <summary>
-            Sends a text message to the client using a <see cref="T:JATT.TextPacket"/>.
+            Sends a text message to the client.
             </summary>
             <param name="message">The message to be sent.</param>
         </member>
@@ -185,6 +215,16 @@
             Gets or sets the value indicating whether the server uses authentication.
             </summary>
         </member>
+        <member name="P:JATT.JATTServer.UsePackets">
+            <summary>
+            Gets or sets the value indicating whether the server uses <see cref="T:JATT.Packet"/>.
+            </summary>
+        </member>
+        <member name="P:JATT.JATTServer.Delimiter">
+            <summary>
+            Gets or sets the value used as delimiter when <see cref="P:JATT.JATTServer.UsePackets"/> is false.
+            </summary>
+        </member>
         <member name="E:JATT.JATTServer.OnClientConnected">
             <summary>
             Occurs when a client connects.
@@ -200,19 +240,14 @@
             Occurs when a client disconnects from the server
             </summary>
         </member>
-        <member name="E:JATT.JATTServer.OnPacketReceived">
-            <summary>
-            Occurs when the server recives any kind of <see cref="T:JATT.Packet"/>.
-            </summary>
-        </member>
         <member name="E:JATT.JATTServer.OnMessageReceived">
             <summary>
-            Occurs when the server recives a text message. (<see cref="T:JATT.TextPacket"/>)
+            Occurs when the server recives a <see cref="T:JATT.Message"/>.
             </summary>
         </member>
-        <member name="E:JATT.JATTServer.OnUserPacketReceived">
+        <member name="E:JATT.JATTServer.OnTransmissionEnd">
             <summary>
-            Occurs when the server receives a <see cref="T:JATT.UserPacket"/>.
+            TODO
             </summary>
         </member>
         <member name="M:JATT.JATTServer.Start(System.Int32)">
@@ -222,38 +257,18 @@
             <param name="port">The port to listen on.</param>
             <exception cref="T:System.Net.Sockets.SocketException"></exception>
         </member>
-        <member name="M:JATT.JATTServer.BroadcastMessage(JATT.Packet)">
+        <member name="M:JATT.JATTServer.BroadcastRawBytes(System.Byte[])">
             <summary>
-            Sends the specified <see cref="T:JATT.Packet"/> to each connected client.
+            Sends a <see cref="T:System.Byte"/>[] to each connected client.
             </summary>
-            <param name="packet">Any type of <see cref="T:JATT.Packet"/>.</param>
+            <param name="data">The bytes to be sent.</param>
         </member>
-        <member name="M:JATT.JATTServer.BroadcastMessage(System.String)">
+        <member name="M:JATT.JATTServer.SendRawBytes(JATT.JATTServer.ServerClient,System.Byte[])">
             <summary>
-            Sends a text message to each connected client using a <see cref="T:JATT.TextPacket"/>.
+            Sends a <see cref="T:System.Byte"/>[] to the specified <see cref="T:JATT.JATTServer.ServerClient"/> without using <see cref="T:JATT.Packet"/>.
             </summary>
-            <param name="message">The message to be sent.</param>
-        </member>
-        <member name="M:JATT.JATTServer.SendMessage(JATT.JATTServer.ServerClient,JATT.Packet)">
-            <summary>
-            Sends a <see cref="T:JATT.Packet"/> to the specified <see cref="T:JATT.JATTServer.ServerClient"/>.
-            </summary>
-            <param name="client">The receiver of the packet.</param>
-            <param name="packet">Any type of <see cref="T:JATT.Packet"/>.</param>
-        </member>
-        <member name="M:JATT.JATTServer.SendMessage(JATT.JATTServer.ServerClient,System.String)">
-            <summary>
-            Sends a text message to the specified <see cref="T:JATT.JATTServer.ServerClient"/>.
-            </summary>
-            <param name="client">The receiver of the message.</param>
-            <param name="message">The message to be sent.</param>
-        </member>
-        <member name="M:JATT.JATTServer.RegisterUserPacket(System.Byte,System.Action{JATT.JATTServer.ServerClient,JATT.UserPacket})">
-            <summary>
-            Registers an <see cref="T:System.Action"/> to be invoked when the server receives the specified type of <see cref="T:JATT.UserPacket"/>.
-            </summary>
-            <param name="type">The type of the packet.</param>
-            <param name="method">The action to be invoked.</param>
+            <param name="client">The receiver of the data.</param>
+            <param name="data">The bytes to be sent.</param>
         </member>
         <member name="M:JATT.JATTServer.Stop">
             <summary>
@@ -265,6 +280,18 @@
             Returns the received bytes. (Receiving a packet clears the buffer)
             </summary>
             <returns>Buffer.</returns>
+        </member>
+        <member name="T:JATT.StatusCode">
+             2xx     Success
+             3xx     Request
+             4xx     Client
+             5xx     Server
+             
+            
+             x0x     Connection
+             x1x     
+             x2x
+             x3x     Authentication
         </member>
         <member name="T:JATT.TcpListenerEx">
             <summary>

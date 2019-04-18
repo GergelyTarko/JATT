@@ -1,13 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net35;net40;net45;netstandard2.0;netcoreapp2.0</TargetFrameworks>
+    <TargetFrameworks>net40;net45;netstandard2.0;netcoreapp2.0</TargetFrameworks>
     <Authors>Gergely Tarkó</Authors>
     <Description>Just Another Tcp Toolkit
 
 Supported platforms:
 
-- .NET Framework 3.5+
+- .NET Framework 4.0+
 
 - .NET Standard 2.0+
 
@@ -15,7 +15,7 @@ Supported platforms:
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/TarkoGergely/JATT</PackageProjectUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>1.0.0.2</Version>
+    <Version>1.0.1-alpha</Version>
     <PackageTags>tcp net</PackageTags>
   </PropertyGroup>
 
@@ -27,6 +27,10 @@ Supported platforms:
     <Compile Remove="nuget\**" />
     <EmbeddedResource Remove="nuget\**" />
     <None Remove="nuget\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.ServiceModel" />
   </ItemGroup>
 
 </Project>

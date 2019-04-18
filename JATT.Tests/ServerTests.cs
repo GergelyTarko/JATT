@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace JATT.Tests
 {
@@ -15,38 +16,20 @@ namespace JATT.Tests
         }
 
         [TestMethod]
-        public void Custom_packet_type_test()
+        public async Task UseAuth_test()
         {
             JATTServer server = new JATTServer();
-            server.RegisterUserPacket(0x17, SendMessageToClient);
-            server.UseAuth = false;
-            server.Start(7991);
-
-            JATTClient client = new JATTClient();
-            client.Connect("127.0.0.1", 7991);
-            client.SendMessageToServer(new UserPacket(0x17, null));
-            client.Disconnect();
-            server.Stop();
-        }
-
-        private void SendMessageToClient(JATTServer.ServerClient client, UserPacket packet)
-        {
-            Assert.IsNotNull(packet, "Userpacket is not null");
-        }
-
-        [TestMethod]
-        public void UseAuth_test()
-        {
-            JATTServer server = new JATTServer();
-            server.RegisterUserPacket(0x17, SendMessageToClient);
             server.UseAuth = true;
             server.Password = "123";
             server.Start(7991);
 
             JATTClient client1 = new JATTClient();
             JATTClient client2 = new JATTClient();
-            Assert.IsFalse(client1.ConnectWithAuth("127.0.0.1", 7991, "TestClient", "321"), "Connect using wrong password");
-            Assert.IsTrue(client2.ConnectWithAuth("127.0.0.1", 7991, "TestClient", "123"), "Connect using the right password");
+            var result = client1.ConnectWithAuthAsync("127.0.0.1", 7991, "TestClient", "321");
+            await result;
+            Assert.IsFalse(result.Result, "Connect using wrong password");
+            result = client1.ConnectWithAuthAsync("127.0.0.1", 7991, "TestClient", "123");
+            Assert.IsTrue(result.Result, "Connect using the right password");
             client1.Disconnect();
             server.Stop();
         }
