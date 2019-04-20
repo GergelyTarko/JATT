@@ -24,4 +24,8 @@ Using Nuget:
 Or see the available packages:
 [![Nuget](https://img.shields.io/github/release-pre/TarkoGergely/JATT.svg)](https://github.com/TarkoGergely/JATT/releases)
 
+## Example
+
+Example of finding servers on LAN
+![](https://i.imgur.com/1JtOED3.gif)
 
