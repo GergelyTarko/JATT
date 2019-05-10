@@ -53,6 +53,7 @@ namespace JATT
         public static Encoding MessageEncoding { get; set; } = Encoding.UTF8;
         public MessageType Type { get; internal set; }
         public byte[] Data { get; internal set; }
+        public bool GetResponse { get; internal set; } = false;
         public string TextMessage {
             get
             {
@@ -64,15 +65,27 @@ namespace JATT
         {
             get
             {
-                return Data.Length+1;
+                return Data.Length+1 + (GetResponse? 1 : 0);
             }
         }
 
-        protected int _messageOffset = 0;
+        protected int _messageOffset = 0;   //TODO
 
         public Message(byte[] data)
         {
-            Data = data;
+            if(data.Last() == 0x07 && data.Length > 1)
+            {
+                Data = new byte[data.Length - 1];
+                Buffer.BlockCopy(data, 0, Data, 0, data.Length - 1);
+                GetResponse = true;
+            }
+            else
+            {
+                Data = new byte[data.Length];
+                Buffer.BlockCopy(data, 0, Data, 0, data.Length);
+                GetResponse = false;
+            }
+                
         }
 
         public Message(string text)
@@ -82,9 +95,11 @@ namespace JATT
 
         public static implicit operator byte[] (Message message)
         {
-            byte[] data = new byte[message.Data.Length + 1];
+            byte[] data = new byte[message.Size];
             Buffer.BlockCopy(message.Data, 0, data, 0, message.Data.Length);
             data[data.Length - 1] = MessageDelimiter;
+            if (message.GetResponse)
+                data[data.Length - 2] = 0x07;
             return data;
         }
 

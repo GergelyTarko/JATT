@@ -25,6 +25,7 @@ namespace JATT
             public Socket Socket { get; internal set; }
 
             internal JATTServer _server = null;
+            //internal byte[] _lastMessage = null;
 
             public Connection()
             {
@@ -48,8 +49,12 @@ namespace JATT
                 _server.SendMessageAsync(this, message);
             }
 
+            /// <summary>
+            /// Gets a value indicating whether the server received the echo of last sent data.
+            /// </summary>
+            //public bool EchoReceived { get { return _lastMessage == null; } }
 
-            internal void Disconnect()
+            public void Disconnect()
             {
                 Socket.Shutdown(SocketShutdown.Both);
                 Socket.Close();
@@ -61,24 +66,18 @@ namespace JATT
                 get { return IsSocketConnected(Socket); }
             }
 
-            private static void SendCallback(object sender, SocketAsyncEventArgs e)
-            {
-                if (e.SocketError == SocketError.Success)
-                {
-                    
-                }
-                else
-                {
-                    Console.WriteLine("Socket error: {0}", e.SocketError);
-                }
-            }
-
         }
+
+        #region Delegates
 
         public delegate void ClientEventHandler(Connection client);
         public delegate void MessageReceivedHandler(Connection client, Message message);
         public delegate void TransmissionEndHandler(Connection client, byte[] data);
+        public delegate void LogWriteHandler(int level, string str);
 
+        #endregion
+
+        #region Properties
         /// <summary>
         /// Occurs when a client connects.
         /// </summary>
@@ -99,64 +98,123 @@ namespace JATT
         /// TODO
         /// </summary>
         public event TransmissionEndHandler OnTransmissionEnd;
-
-        
+        /// <summary>
+        /// TODO
+        /// </summary>
+        public event LogWriteHandler OnLogWrite;
+        /// <summary>
+        /// Gets or sets the maximum number of clients.
+        /// </summary>
         public int MaxConnections { get; set; } = 32;
+        /// <summary>
+        /// Gets or sets the port you intend to host on.
+        /// </summary>
         public int Port { get; set; } = 7991;
         public int MulticastPort { get; set; } = 7995;
         public string MulticastIP { get; set; } = "237.1.3.4";
-        public string WelcomeMessage { get; set; } = "Welcome to the JATTServer";
-        public bool UseEcho { get; set; } = true;
+        /// <summary>
+        /// Gets or sets the value used as welcome message.
+        /// </summary>
+        public string WelcomeMessage
+        {
+            get { return _welcomeMessage; }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    _welcomeMessage = "null";
+                else
+                    _welcomeMessage = value;
+            }
+        }
+        [Obsolete]
+        /// <summary>
+        /// Gets or sets the value indicating whether the server uses echo.
+        /// </summary>
+        public bool UseEcho { get; set; } = false;
+        /// <summary>
+        /// Gets or sets the value indicating whether the server uses authentication.
+        /// </summary>
         public bool UseAuth { get; set; } = true;
+        /// <summary>
+        /// Gets or sets the password of the server.
+        /// </summary>
         public string Password { get; set; } = "";
+        /// <summary>
+        /// Gets or sets the value indicating whether the server should listen for incoming data.
+        /// </summary>
         public bool IsListening { get; set; } = false;
+        /// <summary>
+        /// Gets or sets the value indicating whether the server should be discoverable by the clients.
+        /// </summary>
         public bool EnableDiscovery { get; set; } = true;
-
-        public bool EchoReceived { get { return _lastMessage == null; } }
+        /// <summary>
+        /// Gets the list of the connected clients.
+        /// </summary>
         public List<Connection> Connections { get; private set; } = new List<Connection>();
 
+        #endregion
+
+        #region Private variables
+        private string _welcomeMessage = "Welcome to the JATTServer";
+        IPAddress _ip;
         Socket _socket;
-        Socket _multicastSocket;
-        MulticastHelper _multicastHelper;
+        MulticastHelper.Sender _multicastHelper;
+        [Obsolete]
+        MulticastHelper _mcHelper;
         bool _isActive = false;
         List<Connection> _disconnectionList = new List<Connection>();
         List<byte> _message = new List<byte>();
-        private byte[] _lastMessage = null;
+        bool _isWaitingForResponse = false;
+        
+
+        #endregion
 
         public void Start()
         {
-            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            _socket.Bind(new IPEndPoint(IPAddress.Any, Port));
-            _socket.Listen(MaxConnections);
-
-            if(EnableDiscovery)
+            foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
             {
-                _multicastHelper = new MulticastHelper(MulticastIP, MulticastPort);
-                _multicastHelper.OnMessageReceived += _multicastHelper_OnMessageReceived;
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    _ip =  ip;
+                    break;
+                }
             }
+            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _socket.Bind(new IPEndPoint(_ip, Port));
+            _socket.Listen(MaxConnections);
+            OnLogWrite?.Invoke(0, string.Format("Hosting on {0}", _ip.ToString()));
+
+
+            _multicastHelper = new MulticastHelper.Sender(_ip, MulticastIP, MulticastPort);
 
             IsListening = true;
             _isActive = true;
             ThreadPool.QueueUserWorkItem(ListenerLoop);
         }
 
-        private void _multicastHelper_OnMessageReceived(byte[] data)
-        {
-            string str = System.Text.Encoding.ASCII.GetString(data);
-            Console.WriteLine(str);
-            if (str == "ask")
-            {
-                Message msg = new Message(String.Format("{0} {1}\0{2}\0{3}\0{4}", (int)StatusCode.ReadyForNewUser, WelcomeMessage, Connections.Count, 32, Password != ""));
-                _multicastHelper.SendMessage(msg);
-            }
-        }
-
         public void Stop()
         {
+            OnLogWrite?.Invoke(0, "Closing server.");
             IsListening = false;
             while (_isActive)
                 Thread.Sleep(100);
             Connections.Clear();
+            OnLogWrite?.Invoke(0, "The server has been closed.");
+        }
+
+        public void SMAndWaitForResponse(Connection client, string message, TimeSpan timeout)
+        {
+            Message msg = new Message(message);
+            msg.GetResponse = true;
+            SendMessage(client, msg);
+            _isWaitingForResponse = true;
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+
+            while (_isWaitingForResponse && sw.Elapsed < timeout)
+            {
+                System.Threading.Thread.Sleep(10);
+            }
         }
 
         public void SendMessage(Connection client, string message)
@@ -175,11 +233,15 @@ namespace JATT
                 return;
             lock (client.Socket)
             {
-                if (_lastMessage == null)
-                {
-                    _lastMessage = new byte[data.Length - 1];
-                    Array.Copy(data, _lastMessage, data.Length - 1);
-                }
+                //if (client._lastMessage == null)
+                //{
+                //    client._lastMessage = new byte[data.Length - 1];
+                //    Array.Copy(data, client._lastMessage, data.Length - 1);
+                //}
+                //else
+                //{
+                //    client._lastMessage = null;
+                //}
                 client.Socket.Send(data, 0, data.Length, SocketFlags.None);
             }
         }
@@ -200,11 +262,11 @@ namespace JATT
                 return;
             lock (client.Socket)
             {
-                if (_lastMessage == null)
-                {
-                    _lastMessage = new byte[data.Length - 1];
-                    Array.Copy(data, _lastMessage, data.Length - 1);
-                }
+                //if (client._lastMessage == null)
+                //{
+                //    client._lastMessage = new byte[data.Length - 1];
+                //    Array.Copy(data, client._lastMessage, data.Length - 1);
+                //}
                 bool completedAsync = false;
                 using (SocketAsyncEventArgs completeArgs = new SocketAsyncEventArgs())
                 {
@@ -218,7 +280,7 @@ namespace JATT
                     }
                     catch (SocketException se)
                     {
-                        Console.WriteLine("Socket Exception: " + se.ErrorCode + " Message: " + se.Message);
+                        OnLogWrite?.Invoke(2, string.Format("Socket Exception: {0} Message: {1}", se.ErrorCode, se.Message));
                     }
 
                     if (!completedAsync)
@@ -229,15 +291,15 @@ namespace JATT
             }
         }
 
-        private static void SendCallback(object sender, SocketAsyncEventArgs e)
+        private void SendCallback(object sender, SocketAsyncEventArgs e)
         {
             if (e.SocketError == SocketError.Success)
             {
-
+                // TODO: ?
             }
             else
             {
-                Console.WriteLine("Socket error: {0}", e.SocketError);
+                OnLogWrite?.Invoke(2, string.Format("Socket Error: {0}", e.SocketError));
             }
         }
 
@@ -255,6 +317,9 @@ namespace JATT
 
         private void ListenerLoop(object state)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            TimeSpan timeSpan = new TimeSpan(0, 0, 1);
+            stopwatch.Start();
             while (IsListening)
             {
                 try
@@ -265,13 +330,27 @@ namespace JATT
                 {
 
                 }
+                if(EnableDiscovery)
+                {
+                    if (stopwatch.Elapsed > timeSpan)
+                    {
+                        stopwatch.Restart();
+                        Message multicastMsg = new Message(String.Format("{0} {1}:{2}\0{3}\0{4}\0{5}\0{6}", (int)StatusCode.ReadyForNewUser, _ip.ToString(), Port, WelcomeMessage, Connections.Count, 32, Password != ""));
+                        _multicastHelper.Send(multicastMsg);
+                    }
+                }
+                
 
                 System.Threading.Thread.Sleep(10);
             }
-            if(_multicastSocket != null)
+            foreach (var item in Connections)
             {
-                _multicastSocket.Close();
-                _multicastSocket = null;
+                item.Disconnect();
+            }
+            if(_multicastHelper != null)
+            {
+                _multicastHelper.Close();
+                _multicastHelper = null;
             }
             if (_socket != null)
             {
@@ -292,6 +371,7 @@ namespace JATT
                 foreach (var c in disconnectedClients)
                 {
                     Connections.Remove(c);
+                    OnLogWrite?.Invoke(0, "A client has disconnected.");
                     OnClientDisconnected?.Invoke(c);
                 }
             }
@@ -300,6 +380,8 @@ namespace JATT
             {
                 _socket.BeginAccept(AcceptClientCallback, null);
             }
+
+            
 
             foreach (var c in Connections)
             {
@@ -313,9 +395,10 @@ namespace JATT
                 {
                     continue;
                 }
+                
+                
 
                 List<byte> buffer = new List<byte>();
-                bool skipTransEvent = false;
                 while (c.Socket.Available > 0 && c.Socket.Connected)
                 {
                     byte[] newByte = new byte[1];
@@ -326,68 +409,108 @@ namespace JATT
                         byte[] msg = _message.ToArray();
                         _message.Clear();
                         Message message = new Message(msg);
-                        if (UseEcho)
-                        {
-                            if (_lastMessage == null)
-                            {
-                                _lastMessage = message;
-                                SendMessage(c, message);
-                                _lastMessage = null;
-                            }
-                            else if (_lastMessage != null && Enumerable.SequenceEqual(msg, _lastMessage))
-                            {
-                                _lastMessage = null;
-                                skipTransEvent = true;
-                                continue;
-                            }
-                                
-                        }
+                        //if (UseEcho)
+                        //{
+                        //    if (c._lastMessage == null)
+                        //    {
+                        //        c._lastMessage = message;
+                        //        SendMessage(c, message);
+                        //        //c._lastMessage = null;
+                        //    }
+                        //    else if (c._lastMessage != null && Enumerable.SequenceEqual(msg, c._lastMessage))
+                        //    {
+                        //        Console.WriteLine("Echo received: " + Message.MessageEncoding.GetString(c._lastMessage));
+                        //        c._lastMessage = null;
+                        //        buffer.Clear();
+                        //        continue;
+                        //    }
+                        //    else
+                        //    {
+                        //        Console.WriteLine("------------------------ERROR START-----------------------------------");
+                        //        Console.WriteLine("false Echo received: " + Message.MessageEncoding.GetString(msg));
+                        //        Console.WriteLine("instead of  " + Message.MessageEncoding.GetString(c._lastMessage));
+                        //        Console.WriteLine("------------------------ERROR END-----------------------------------");
+                        //    }
 
-                        Command cmd = Command.Unknown;
-                        string comment = "";
-                        if (Message.ParseCommand(message, out cmd, out comment))
+                        //}
+                        if(message.Data[0] == 0x07)
                         {
-                            switch (cmd)
-                            {
-                                case Command.Unknown:
-                                    break;
-                                case Command.USR:
-                                    c.Identifier = comment;
-                                    if (UseAuth && Password != "")
-                                    {
-                                        c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.NeedPassword)));
-                                    }
-                                    break;
-                                case Command.PW:
-                                    if (UseAuth && c.Identifier == null || c.Identifier == "")
-                                    {
-                                        c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.IncorrectIdentifier)));
-                                        c.Disconnect();
-                                        return;
-                                    }
-                                    if (Password != comment)
-                                    {
-                                        c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.IncorrectPassword)));
-                                        c.Disconnect();
-                                        return;
-                                    }
-                                    c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.AccessGranted)));
-                                    c.State = ClientState.Registered;
-                                    OnClientRegistered?.Invoke(c);
-                                    break;
-                                default:
-                                    break;
-                            }
-                            return;
+                            _isWaitingForResponse = false;
+                            continue;
                         }
-                        OnMessageReceived?.Invoke(c, message);
+                        if (buffer.Count > 0)
+                        {
+                            Command cmd = Command.Unknown;
+                            string comment = "";
+                            if (Message.ParseCommand(message, out cmd, out comment))
+                            {
+                                switch (cmd)
+                                {
+                                    case Command.Unknown:
+                                        break;
+                                    case Command.USR:
+
+                                        if (comment == "")
+                                        {
+                                            c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.IncorrectIdentifier)));
+                                            c.Disconnect();
+                                            continue;//return
+                                        }
+                                        c.Identifier = comment;
+                                        if (UseAuth)
+                                        {
+                                            if (!string.IsNullOrEmpty(Password))
+                                            {
+                                                c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.NeedPassword)));
+                                            }
+                                            else
+                                            {
+                                                c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.AccessGranted)));
+                                                OnLogWrite?.Invoke(0, string.Format("{0} has registered.", c.Identifier));
+                                                OnClientRegistered?.Invoke(c);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.AccessGranted)));
+                                        }
+                                        break;
+                                    case Command.PW:
+                                        if (UseAuth && string.IsNullOrEmpty(c.Identifier))
+                                        {
+                                            c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.IncorrectIdentifier)));
+                                            c.Disconnect();
+                                            continue;//return
+                                        }
+                                        if (Password != comment)
+                                        {
+                                            c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.IncorrectPassword)));
+                                            c.Disconnect();
+                                            continue;//return
+                                        }
+                                        c.SendMessage(new Message(String.Format("{0}", (int)StatusCode.AccessGranted)));
+                                        c.State = ClientState.Registered;
+                                        OnLogWrite?.Invoke(0, string.Format("{0} has registered.", c.Identifier));
+                                        OnClientRegistered?.Invoke(c);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                                //continue; //return
+                            }
+                            else
+                            {
+                                OnMessageReceived?.Invoke(c, message);
+                            }
+                            
+                        }
                     }
                     else
                     {
                         _message.AddRange(newByte);
                     }
                 }
-                if (buffer.Count > 0 && !skipTransEvent)
+                if (buffer.Count > 0)
                 {
                     OnTransmissionEnd?.Invoke(c, buffer.ToArray());
                 }
@@ -402,12 +525,18 @@ namespace JATT
                 _server = this,
                 Socket = newSocket
             };
-            if (WelcomeMessage != null && WelcomeMessage != "")
-                client.SendMessage(new Message(String.Format("{0} {1}\0{2}\0{3}\0{4}", (int)StatusCode.ReadyForNewUser, WelcomeMessage, Connections.Count, 32, Password != "")));
-
+            OnLogWrite?.Invoke(0, "A client has connected.");
             Connections.Add(client);
             OnClientConnected?.Invoke(client);
-
+            if (Connections.Count-1 < MaxConnections)
+            {
+                client.SendMessage(new Message(String.Format("{0} {1}\0{2}\0{3}\0{4}", (int)StatusCode.ReadyForNewUser, WelcomeMessage, Connections.Count, 32, !string.IsNullOrEmpty(Password))));               
+            }
+            else
+            {
+                client.SendMessage(new Message(String.Format("{0} {1}\0{2}\0{3}\0{4}", (int)StatusCode.ServerIsFull, WelcomeMessage, Connections.Count, 32, !string.IsNullOrEmpty(Password))));
+                client.Disconnect();
+            }
         }
 
         private static bool IsSocketConnected(Socket s)

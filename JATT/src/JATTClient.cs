@@ -12,7 +12,10 @@ namespace JATT
 
     public class ServerDetails
     {
-        public System.Net.EndPoint EndPoint { get; internal set; }
+        /// <summary>
+        /// Gets the <see cref="IPEndPoint"/> of the server.
+        /// </summary>
+        public IPEndPoint EndPoint { get; internal set; }
         /// <summary>
         /// Gets the welcome message of the server.
         /// </summary>
@@ -29,7 +32,9 @@ namespace JATT
         /// Gets a <see cref="bool"/> value that represents whether the server is password protected.
         /// </summary>
         public bool IsPasswordProtected { get; internal set; }
-
+        /// <summary>
+        /// 
+        /// </summary>
         public override string ToString()
         {
             return String.Format("{0} {1}/{2} {3}", WelcomeMessage, Clients, MaxClients, IsPasswordProtected ? "[Protected]" : "");
@@ -44,13 +49,20 @@ namespace JATT
         public delegate void ConnectionHandler();
         public delegate void ErrorHandler(string error);
         public delegate void TransmissionEndHandler(byte[] data);
+        public delegate void ServerFoundHandler(ServerDetails serverDetails);
+        public delegate void LogWriteHandler(int level, string str);
         #endregion
 
         #region Properties
 
+        /// <summary>
+        /// Gets or sets a <see cref="string"/> value used for identification by the server.
+        /// </summary>
         public string Identifier { get; set; } = "Client1";
+        /// <summary>
+        /// Gets or sets a <see cref="string"/> value used by the authorization of the client.
+        /// </summary>
         public string Password { get; set; } = "";
-
         /// <summary>
         /// Gets the state of the server. Used only with <see cref="ConnectWithAuth"/>.
         /// </summary>
@@ -59,12 +71,23 @@ namespace JATT
         /// Gets a <see cref="ServerDetails"/> value that holds the details of the server to which the client is connected.
         /// </summary>
         public ServerDetails ServerDetails { get; private set; }
-
-        public bool UseEcho { get; set; } = true;
+        [Obsolete]
+        /// <summary>
+        /// Gets or sets the value indicating whether the client uses echo.
+        /// </summary>
+        public bool UseEcho { get; set; } = false;
+        /// <summary>
+        /// Gets or sets the value indicating whether the client should listen for incoming data.
+        /// </summary>
         public bool IsListening { get; set; } = false;
-
-        public bool EchoReceived { get { return _lastMessage == null; } }
-
+        /// <summary>
+        /// Gets a value indicating whether the client received the echo of last sent data.
+        /// </summary>
+        //public bool EchoReceived { get { return _lastMessage == null; } }
+        /// <summary>
+        /// Gets a value indicating whether the client is connected to the server.
+        /// </summary>
+        public bool IsConnected { get { return IsClientConnected(); } }
         /// <summary>
         /// Occurs when the client receives any kind of <see cref="Message"/>.
         /// </summary>
@@ -85,14 +108,22 @@ namespace JATT
         /// Occurs when the server denies the registration of the client.
         /// </summary>
         public event ErrorHandler OnRegisterFailed;
+        ///// <summary>
+        ///// Occurs when the client receives the <see cref="ServerDetails"/>
+        ///// </summary>
+        //public event WelcomeMessageReceivedHandler OnWelcomeMsgReceived;
         /// <summary>
-        /// Occurs when the client receives the <see cref="ServerDetails"/>
-        /// </summary>
-        public event WelcomeMessageReceivedHandler OnWelcomeMsgReceived;
-        /// <summary>
-        /// TODO
+        /// Occurs when no more readable data avaliable.
         /// </summary>
         public event TransmissionEndHandler OnTransmissionEnd;
+        /// <summary>
+        /// Occurs when the <see cref="FindServers"/> method has found a server.
+        /// </summary>
+        public static event ServerFoundHandler OnServerFound;
+        /// <summary>
+        /// Used for logging purposes.
+        /// </summary>
+        public event LogWriteHandler OnLogWrite;
 
         #endregion
 
@@ -100,23 +131,38 @@ namespace JATT
         private Socket _socket;
         bool _isActive = false;
         private List<byte> _message = new List<byte>();
-        private byte[] _lastMessage = null;
+        //private byte[] _lastMessage = null;
         private static ManualResetEvent _timeoutObject = new ManualResetEvent(false);
+        private Thread _listenerThread = null;
         #endregion
 
         #region Public Methods
-
-
+        /// <summary>
+        /// Connects to the specified port on the specified host and tries to authorise using the given <see cref="Identifier"/> and <see cref="Password"/>.
+        /// </summary>
+        /// <param name="ip">The host to which you intend to connect.</param>
+        /// <param name="port">The port number of the host to which you intend to connect.</param>
+        /// <param name="timeoutMS">Timeout in ms</param>
+        /// <returns></returns>
         public bool ConnectAndAuth(string ip, int port, int timeoutMS = 5000)
         {
+            return ConnectAndAuth(new IPEndPoint(IPAddress.Parse(ip), port), timeoutMS);
+        }
+        /// <summary>
+        /// Connects to the specified port on the specified host and tries to authorise using the given <see cref="Identifier"/> and <see cref="Password"/>.
+        /// </summary>
+        /// <param name="endPoint">The host to which you intend to connect.</param>
+        /// <param name="timeoutMS">Timeout in ms</param>
+        /// <returns></returns>
+        public bool ConnectAndAuth(IPEndPoint endPoint, int timeoutMS = 5000)
+        {
             _timeoutObject.Reset();
-            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(ip), port);
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             var result = _socket.BeginConnect(endPoint, ConnectCallback, null);
 
-            if(_timeoutObject.WaitOne(timeoutMS, false))
+            if (_timeoutObject.WaitOne(timeoutMS, false))
             {
-                if(_isActive)
+                if (_isActive)
                 {
                     WaitForRegister(5);
                     return State == ClientState.Registered;
@@ -129,45 +175,6 @@ namespace JATT
             else
             {
                 return false;
-            }
-            //await Task.Factory.FromAsync(result, (r) => _socket.EndConnect(r));
-            
-            //OnConnected?.Invoke();
-            ////if (_listenerThread != null) { return true; }
-            ////_listenerThread = new Thread(ListenerLoop);
-            ////_listenerThread.IsBackground = true;
-           
-            //
-        }
-
-        private void ConnectCallback(IAsyncResult ar)
-        {
-            try
-            {
-                _socket.EndConnect(ar);
-                OnConnected?.Invoke();
-                IsListening = true;
-                _isActive = true;
-                ThreadPool.QueueUserWorkItem(ListenerLoop);
-            }
-            catch
-            {
-
-            }
-            finally
-            {
-                _timeoutObject.Set();
-            }
-        }
-
-        private void WaitForRegister(int timeout)
-        {
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            TimeSpan timeSpan = new TimeSpan(0, 0, timeout);
-            while (State == ClientState.Pending && sw.Elapsed < timeSpan)
-            {
-                System.Threading.Thread.Sleep(10);
             }
         }
 
@@ -210,48 +217,71 @@ namespace JATT
         {
             return _message.ToArray();
         }
-
+        /// <summary>
+        /// Sends a message to the server using the <see cref="Message"/> class.
+        /// </summary>
+        /// <param name="message">The string to be sent.</param>
         public void SendMessage(string message)
         {
             SendMessage(new Message(message));
         }
-
+        /// <summary>
+        /// Sends a message to the server using the <see cref="Message"/> class.
+        /// </summary>
+        /// <param name="message">The message to be sent.</param>
         public void SendMessage(Message message)
         {
             SendMessage((byte[])message);
         }
-
+        /// <summary>
+        /// Sends the specified byte array to the server.
+        /// </summary>
+        /// <param name="message">The array to be sent.</param>
         public void SendMessage(byte[] data)
         {
             lock (_socket)
             {
-                if (_lastMessage == null)
-                {
-                    _lastMessage = new byte[data.Length-1];
-                    Array.Copy(data, _lastMessage, data.Length-1);
-                }
+                //if (_lastMessage == null)
+                //{
+                //    _lastMessage = new byte[data.Length-1];
+                //    Array.Copy(data, _lastMessage, data.Length-1);
+                //}
+                //else
+                //{
+                //    _lastMessage = null;
+                //}
                 _socket.Send(data, 0, data.Length, SocketFlags.None);
             }
         }
+        /// <summary>
+        /// Sends a message asynchronously to the server using the <see cref="Message"/> class.
+        /// </summary>
+        /// <param name="message">The string to be sent.</param>
         public void SendMessageAsync(string message)
         {
             SendMessageAsync(new Message(message));
         }
-
+        /// <summary>
+        /// Sends a message asynchronously to the server using the <see cref="Message"/> class.
+        /// </summary>
+        /// <param name="message">The message to be sent.</param>
         public void SendMessageAsync(Message message)
         {
             SendMessageAsync(message);
         }
-
+        /// <summary>
+        /// Sends the specified byte array asynchronously to the server.
+        /// </summary>
+        /// <param name="message">The array to be sent.</param>
         public void SendMessageAsync(byte[] data)
         {
             lock (_socket)
             {
-                if (_lastMessage == null)
-                {
-                    _lastMessage = new byte[data.Length-1];
-                    Array.Copy(data, _lastMessage, data.Length - 1);
-                }
+                //if (_lastMessage == null)
+                //{
+                //    _lastMessage = new byte[data.Length-1];
+                //    Array.Copy(data, _lastMessage, data.Length - 1);
+                //}
                 bool completedAsync = false;
                 using (SocketAsyncEventArgs completeArgs = new SocketAsyncEventArgs())
                 {
@@ -265,7 +295,7 @@ namespace JATT
                     }
                     catch (SocketException se)
                     {
-                        Console.WriteLine("Socket Exception: " + se.ErrorCode + " Message: " + se.Message);
+                        OnLogWrite?.Invoke(2, string.Format("Socket Exception: {0} Message: {1}", se.ErrorCode, se.Message));
                     }
 
                     if (!completedAsync)
@@ -275,49 +305,22 @@ namespace JATT
                 }
             }
         }
-
-
-        private static void SendCallback(object sender, SocketAsyncEventArgs e)
+        /// <summary>
+        /// Disconnects the client.
+        /// </summary>
+        public void Disconnect()
         {
-            if (e.SocketError == SocketError.Success)
-            {
-
-            }
-            else
-            {
-                Console.WriteLine("Socket error: {0}", e.SocketError);
-            }
+            IsListening = false;
+            if(_socket != null)
+                _socket.Close();
+            _socket = null;
         }
 
-        ///// <summary>
-        ///// Sends the specified <see cref="Packet"/> to the clients on the server. (Excluding the server)
-        ///// Uses <see cref="BroadcastPacket"/>.
-        ///// </summary>
-        ///// <param name="packet">Any type of <see cref="Packet"/></param>
-        //public void BroadcastMessage(Packet packet)
-        //{
-        //    if (packet == null || !_client.Connected)
-        //        return;
-        //    SendMessageToServer(new BroadcastPacket(packet));
-        //}
+        #endregion
 
-        /// <summary>
-        /// Sends the specified <see cref="Packet"/> to the clients on the server. (Excluding the server)
-        /// Uses <see cref="BroadcastPacket"/> and <see cref="TextPacket"/>.
-        /// </summary>
-        /// <param name="message">The message to be sent.</param>
-        //public void BroadcastMessage(string message)
-        //{
-        //    if (!_client.Connected || message == null || message == "")
-        //        return;
-        //    SendMessageToServer(new BroadcastPacket(new TextPacket(message)));
-        //}
+        #region Private Methods
 
-        /// <summary>
-        /// TODO
-        /// </summary>
-        /// <returns></returns>
-        public bool IsConnected()
+        private bool IsClientConnected()
         {
             //https://social.msdn.microsoft.com/Forums/en-US/c857cad5-2eb6-4b6c-b0b5-7f4ce320c5cd/c-how-to-determine-if-a-tcpclient-has-been-disconnected?forum=netfxnetcom
             if (IsSocketConnected(_socket))
@@ -325,14 +328,19 @@ namespace JATT
                 if ((_socket.Poll(0, SelectMode.SelectWrite)) && (!_socket.Poll(0, SelectMode.SelectError)))
                 {
                     byte[] buffer = new byte[1];
+                    //int timeout = _socket.ReceiveTimeout;
+                    //_socket.ReceiveTimeout = 500;
                     if (_socket.Receive(buffer, SocketFlags.Peek) == 0)
                     {
                         return false;
                     }
                     else
                     {
+                        //_socket.ReceiveTimeout = timeout;
                         return true;
                     }
+
+
                 }
                 else
                 {
@@ -345,6 +353,51 @@ namespace JATT
             }
         }
 
+        private void ConnectCallback(IAsyncResult ar)
+        {
+            try
+            {
+                _socket.EndConnect(ar);
+                OnLogWrite?.Invoke(0, string.Format("Connected to {0}", _socket.RemoteEndPoint.ToString()));
+                OnConnected?.Invoke();
+                IsListening = true;
+                _isActive = true;
+                _listenerThread = new Thread(ListenerLoop);
+                _listenerThread.IsBackground = true;
+                _listenerThread.Start();
+            }
+            catch
+            {
+
+            }
+            finally
+            {
+                _timeoutObject.Set();
+            }
+        }
+
+        private void WaitForRegister(int timeout)
+        {
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            TimeSpan timeSpan = new TimeSpan(0, 0, timeout);
+            while (State == ClientState.Pending && sw.Elapsed < timeSpan)
+            {
+                System.Threading.Thread.Sleep(10);
+            }
+        }
+
+        private void SendCallback(object sender, SocketAsyncEventArgs e)
+        {
+            if (e.SocketError == SocketError.Success)
+            {
+                // TODO: ?
+            }
+            else
+            {
+                OnLogWrite?.Invoke(2, string.Format("Socket Error: {0}", e.SocketError));
+            }
+        }
         private bool IsSocketConnected(Socket s)
         {
             // https://stackoverflow.com/questions/2661764/how-to-check-if-a-socket-is-connected-disconnected-in-c
@@ -355,20 +408,6 @@ namespace JATT
             else
                 return true;
         }
-
-        /// <summary>
-        /// Disconnects the client.
-        /// </summary>
-        public void Disconnect()
-        {
-            IsListening = false;
-            while (_isActive)
-                Thread.Sleep(100);
-        }
-
-        #endregion
-
-        #region Private Methods
         private void ListenerLoop(object state)
         {
             while (IsListening)
@@ -379,10 +418,10 @@ namespace JATT
                 }
                 catch
                 {
-
                 }
                 Thread.Sleep(10);
             }
+            OnLogWrite?.Invoke(0, "Disconnected.");
             OnDisconnected?.Invoke();
             if (_socket != null)
             {
@@ -391,6 +430,7 @@ namespace JATT
             }
             _isActive = false;
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _listenerThread = null;
         }
 
         private void Process()
@@ -404,7 +444,7 @@ namespace JATT
             }
 
 
-            if (!IsConnected())
+            if (!IsConnected)
             {
                 IsListening = false;
                 return;
@@ -418,7 +458,6 @@ namespace JATT
             }
 
             List<byte> buffer = new List<byte>();
-            bool skipTransEvent = false;
             while (_socket.Available > 0 && _socket.Connected)
             {
                 byte[] newByte = new byte[1];
@@ -429,123 +468,134 @@ namespace JATT
                     byte[] msg = _message.ToArray();
                     _message.Clear();
                     Message message = new Message(msg);
-                    if (UseEcho)
+                    if (buffer.Count > 0)
                     {
-                        if(_lastMessage == null)
+                        Command cmd = Command.Unknown;
+                        StatusCode statusCode = StatusCode.Undefined;
+                        string comment = "";
+                        if (Message.ParseCommand(message, out cmd, out comment))
                         {
-                            _lastMessage = message;
-                            SendMessage(message);
-                            _lastMessage = null;
+                            switch (cmd)
+                            {
+                                case Command.Unknown:
+                                    break;
+                                default:
+                                    break;
+                            }
+                            return;
                         }
-                        else if (_lastMessage != null && Enumerable.SequenceEqual(msg, _lastMessage))
+                        else if (Message.ParseStatusCode(message, out statusCode, out comment))
                         {
-                            _lastMessage = null;
-                            skipTransEvent = true;
-                            continue;
+                            switch (statusCode)
+                            {
+                                case StatusCode.Undefined:
+                                    break;
+                                case StatusCode.ReadyForNewUser:
+                                    SendMessage(new Message(String.Format("{0} {1}", Command.USR, Identifier)));
+                                    break;
+                                case StatusCode.AccessGranted:
+                                    State = ClientState.Registered;
+                                    OnRegistered?.Invoke();
+                                    break;
+                                case StatusCode.NeedPassword:
+                                    SendMessage(new Message(String.Format("{0} {1}", Command.PW, Password)));
+                                    break;
+                                case StatusCode.IncorrectIdentifier:
+                                    State = ClientState.Declined;
+                                    OnLogWrite?.Invoke(0, "Register failed: Incorrect identifier.");
+                                    OnRegisterFailed?.Invoke("Incorrect identifier");
+                                    break;
+                                case StatusCode.IncorrectPassword:
+                                    State = ClientState.Declined;
+                                    OnLogWrite?.Invoke(0, "Register failed: Incorrect password.");
+                                    OnRegisterFailed?.Invoke("Incorrect password");
+                                    break;
+                                case StatusCode.ServerIsFull:
+                                    State = ClientState.Declined;
+                                    OnLogWrite?.Invoke(0, "Register failed: The server is full.");
+                                    OnRegisterFailed?.Invoke("The server is full");
+                                    break;
+                                default:
+                                    break;
+                            }
+                            return;
                         }
-                            
+                        OnMessageReceived?.Invoke(message);
+                        if(message.GetResponse)
+                        {
+                            SendMessage(new Message(new byte[] { 0x07 }));
+                        }
                     }
-                    Command cmd = Command.Unknown;
-                    StatusCode statusCode = StatusCode.Undefined;
-                    string comment = "";
-                    if (Message.ParseCommand(message, out cmd, out comment))
-                    {
-                        switch (cmd)
-                        {
-                            case Command.Unknown:
-                                break;
-                            default:
-                                break;
-                        }
-                        return;
-                    }
-                    else if (Message.ParseStatusCode(message, out statusCode, out comment))
-                    {
-                        switch (statusCode)
-                        {
-                            case StatusCode.Undefined:
-                                break;
-                            case StatusCode.ReadyForNewUser:
-                                SendMessage(new Message(String.Format("{0} {1}", Command.USR, Identifier)));
-                                break;
-                            case StatusCode.AccessGranted:
-                                OnRegistered?.Invoke();
-                                State = ClientState.Registered;
-                                break;
-                            case StatusCode.NeedPassword:
-                                SendMessage(new Message(String.Format("{0} {1}", Command.PW, Password)));
-                                break;
-                            case StatusCode.IncorrectIdentifier:
-                                OnRegisterFailed?.Invoke("Incorrect identifier");
-                                State = ClientState.Declined;
-                                break;
-                            case StatusCode.IncorrectPassword:
-                                OnRegisterFailed?.Invoke("Incorrect password");
-                                State = ClientState.Declined;
-                                break;
-                            case StatusCode.ServerIsFull:
-                                //  TODO:
-                                State = ClientState.Declined;
-                                break;
-                            default:
-                                break;
-                        }
-                        return;
-                    }
-                    OnMessageReceived?.Invoke(message);
                 }
                 else
                 {
                     _message.AddRange(newByte);
                 }
             }
-            if (buffer.Count > 0 && !skipTransEvent)
+            if (buffer.Count > 0)
             {
                 OnTransmissionEnd?.Invoke(buffer.ToArray());
             }
         }
 
+        #endregion
+
         private static readonly object locker = new object();
-        public static IEnumerable<ServerDetails> FindServers(string multicastIp = "237.1.3.4", int port = 7995, int timeout = 5)
+        /// <summary>
+        /// Search for server on the local network.
+        /// </summary>
+        /// <param name="multicastIp"></param>
+        /// <param name="port"></param>
+        /// <param name="timeout"></param>
+        public static void FindServers(string multicastIp = "237.1.3.4", int port = 7995, int timeout = 3)
         {
             lock (locker)
             {
                 List<ServerDetails> serverDetailList = new List<ServerDetails>();
-                MulticastHelper multicastHelper = new MulticastHelper(multicastIp, port);
+                IPAddress ipa = IPAddress.Any;
+                foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
+                {
+                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        ipa = ip;
+                    }
+                }
+                MulticastHelper.Receiver multicastHelper = new MulticastHelper.Receiver(ipa, multicastIp, port);
                 multicastHelper.OnMessageReceived += (data) =>
                 {
-                    string str = Message.MessageEncoding.GetString(data).Trim();
+                    string str = Message.MessageEncoding.GetString(data, 0, data.Length-1).Trim();
                     if (str.StartsWith("201"))
                     {
+                        str = str.Remove(0, 4);
                         string[] s = str.Split('\0');
-                        ServerDetails serverDetails = new ServerDetails()
+                        string[] ip = s[0].Split(':');
+                        ServerDetails serverDetails = new ServerDetails();
+
+                        serverDetails.EndPoint = new IPEndPoint(IPAddress.Parse(ip[0]), int.Parse(ip[1]));
+                        serverDetails.WelcomeMessage = s[1];
+                        serverDetails.Clients = int.Parse(s[2]);
+                        serverDetails.MaxClients = int.Parse(s[3]);
+                        serverDetails.IsPasswordProtected = bool.Parse(s[4]);
+                        if(!serverDetailList.Any(x => x.EndPoint.Equals(serverDetails.EndPoint)))
                         {
-                            WelcomeMessage = s[0],
-                            Clients = int.Parse(s[1]),
-                            MaxClients = int.Parse(s[2]),
-                            IsPasswordProtected = bool.Parse(s[3])
-                        };
-                        serverDetailList.Add(serverDetails);
+                            serverDetailList.Add(serverDetails);
+                            OnServerFound?.Invoke(serverDetailList.Last());
+                        }
+                            
                     }
                 };
-                multicastHelper.SendMessage(new byte[3] { 0x61, 0x73, 0x6b });
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
                 TimeSpan timeSpan = new TimeSpan(0, 0, timeout);
                 while (sw.Elapsed < timeSpan)
                 {
-                    while(serverDetailList.Count > 0)
-                    {
-                        yield return serverDetailList.Last();
-                        serverDetailList.RemoveAt(serverDetailList.Count - 1);
-                    }
-                   
+                    
+                    Thread.Sleep(1000);
                 }
                 multicastHelper.Close();
-                //return serverDetailList;
             }
         }
 
-        #endregion
+        
     }
 }
