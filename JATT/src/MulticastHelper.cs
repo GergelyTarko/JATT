@@ -46,14 +46,21 @@ namespace JATT
             private byte[] buffer = new byte[1024];
             public Receiver(IPAddress localIP, string multicastIP, int multicastPort)
             {
-                _udpClient = new UdpClient(7995);
-                ip = IPAddress.Parse(multicastIP);
-                _udpClient.JoinMulticastGroup(ip, localIP);
-                //IPEndPoint ipep = new IPEndPoint(localIP, multicastPort);
-                //_socket.Bind(ipep);
-                //IPAddress ip = IPAddress.Parse(multicastIP);
-                //_socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, new MulticastOption(ip, localIP));
-                _udpClient.BeginReceive(MulticastReceiveCallback, null);
+                try
+                {
+                    _udpClient = new UdpClient(7995);
+                    ip = IPAddress.Parse(multicastIP);
+                    _udpClient.JoinMulticastGroup(ip, localIP);
+                    //IPEndPoint ipep = new IPEndPoint(localIP, multicastPort);
+                    //_socket.Bind(ipep);
+                    //IPAddress ip = IPAddress.Parse(multicastIP);
+                    //_socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, new MulticastOption(ip, localIP));
+                    _udpClient.BeginReceive(MulticastReceiveCallback, null);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Error in MulticastHelper: " + e.ToString());
+                }
             }
 
             private void MulticastReceiveCallback(IAsyncResult ar)

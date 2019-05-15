@@ -15,7 +15,7 @@ Supported platforms:
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/TarkoGergely/JATT</PackageProjectUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>1.1.1-alpha</Version>
+    <Version>1.1.2-alpha</Version>
     <PackageTags>tcp net</PackageTags>
   </PropertyGroup>
 

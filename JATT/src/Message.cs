@@ -57,7 +57,7 @@ namespace JATT
         public string TextMessage {
             get
             {
-                return MessageEncoding.GetString(Data, _messageOffset, Data.Length - _messageOffset);
+                return MessageEncoding.GetString(Data, 0, Data.Length);
             }
         }
 
@@ -68,8 +68,6 @@ namespace JATT
                 return Data.Length+1 + (GetResponse? 1 : 0);
             }
         }
-
-        protected int _messageOffset = 0;   //TODO
 
         public Message(byte[] data)
         {

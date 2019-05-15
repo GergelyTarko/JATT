@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -241,15 +242,8 @@ namespace JATT
         {
             lock (_socket)
             {
-                //if (_lastMessage == null)
-                //{
-                //    _lastMessage = new byte[data.Length-1];
-                //    Array.Copy(data, _lastMessage, data.Length-1);
-                //}
-                //else
-                //{
-                //    _lastMessage = null;
-                //}
+                if (data == null || data.Length == 0 || !IsSocketConnected(_socket))
+                    return;
                 _socket.Send(data, 0, data.Length, SocketFlags.None);
             }
         }
@@ -277,11 +271,8 @@ namespace JATT
         {
             lock (_socket)
             {
-                //if (_lastMessage == null)
-                //{
-                //    _lastMessage = new byte[data.Length-1];
-                //    Array.Copy(data, _lastMessage, data.Length - 1);
-                //}
+                if (data == null || data.Length == 0 || !IsSocketConnected(_socket))
+                    return;
                 bool completedAsync = false;
                 using (SocketAsyncEventArgs completeArgs = new SocketAsyncEventArgs())
                 {
@@ -323,7 +314,7 @@ namespace JATT
         private bool IsClientConnected()
         {
             //https://social.msdn.microsoft.com/Forums/en-US/c857cad5-2eb6-4b6c-b0b5-7f4ce320c5cd/c-how-to-determine-if-a-tcpclient-has-been-disconnected?forum=netfxnetcom
-            if (IsSocketConnected(_socket))
+            if (IsSocketConnected(_socket)) // TODO: just IsSocketConnected
             {
                 if ((_socket.Poll(0, SelectMode.SelectWrite)) && (!_socket.Poll(0, SelectMode.SelectError)))
                 {
@@ -539,7 +530,7 @@ namespace JATT
         }
 
         #endregion
-
+        public static NetworkInterface Adapter { get; set; } = null;
         private static readonly object locker = new object();
         /// <summary>
         /// Search for server on the local network.
@@ -553,11 +544,27 @@ namespace JATT
             {
                 List<ServerDetails> serverDetailList = new List<ServerDetails>();
                 IPAddress ipa = IPAddress.Any;
-                foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
+                if (Adapter == null)
                 {
-                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+                    foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
                     {
-                        ipa = ip;
+                        Console.WriteLine(ip);
+                        if (ip.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            ipa = ip;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (UnicastIPAddressInformation ip in Adapter.GetIPProperties().UnicastAddresses)
+                    {
+                        if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        {
+                            ipa = ip.Address;
+                            break;
+                        }
                     }
                 }
                 MulticastHelper.Receiver multicastHelper = new MulticastHelper.Receiver(ipa, multicastIp, port);

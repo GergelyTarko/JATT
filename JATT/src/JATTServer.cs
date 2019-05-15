@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,11 +96,11 @@ namespace JATT
         /// </summary>
         public event MessageReceivedHandler OnMessageReceived;
         /// <summary>
-        /// TODO
+        /// Occurs when no more readable data avaliable.
         /// </summary>
         public event TransmissionEndHandler OnTransmissionEnd;
         /// <summary>
-        /// TODO
+        /// Used for logging purposes. 
         /// </summary>
         public event LogWriteHandler OnLogWrite;
         /// <summary>
@@ -152,6 +153,8 @@ namespace JATT
         /// </summary>
         public List<Connection> Connections { get; private set; } = new List<Connection>();
 
+        public NetworkInterface Adapter { get; set; } = null;
+
         #endregion
 
         #region Private variables
@@ -165,18 +168,53 @@ namespace JATT
         List<Connection> _disconnectionList = new List<Connection>();
         List<byte> _message = new List<byte>();
         bool _isWaitingForResponse = false;
-        
+
 
         #endregion
 
+
+        public List<NetworkInterface> GetNetworkAdapters()
+        {
+            List<NetworkInterface> values = new List<NetworkInterface>();
+            foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet)
+                {
+                    foreach (UnicastIPAddressInformation ip in ni.GetIPProperties().UnicastAddresses)
+                    {
+                        if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        {
+                            values.Add(ni);
+                        }
+                    }
+                }
+            }
+            return values;
+        }
+
         public void Start()
         {
-            foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
+            if (Adapter == null)
             {
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
                 {
-                    _ip =  ip;
-                    break;
+                    Console.WriteLine(ip);
+                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        _ip = ip;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                foreach (UnicastIPAddressInformation ip in Adapter.GetIPProperties().UnicastAddresses)
+                {
+                    if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        _ip = ip.Address;
+                        break;
+                    }
                 }
             }
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
