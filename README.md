@@ -14,7 +14,7 @@ JATT is a simple .NET library to easily handle TCP socket connections.
 
 ## Documentation
 
-For examples on how to install and use JATT visit the [documentation](Documentation/Readme.md) page.
+For examples on how to install and use JATT visit the [wiki](https://github.com/GergelyTarko/JATT/wiki/Examples) page.
 
 ## Download
 
